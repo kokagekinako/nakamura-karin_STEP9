@@ -12,4 +12,13 @@ class Product extends Model
         'description',
         'stock',
     ];
+
+    public function reduceStock($quantity)
+    {
+        if ($quantity <= 0) {
+            throw new \InvalidArgumentException('数量が不正です。');
+        }
+
+        return $this->decrement('stock', $quantity);
+    }
 }

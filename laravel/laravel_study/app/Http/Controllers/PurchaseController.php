@@ -26,42 +26,37 @@ class PurchaseController extends Controller
       ]
     );
 
-    $product_id = $request->input('product_id');
-    $quantity = $request->input('quantity');
-
-    $product = Product::findOrFail($product_id);
-
-    if ($product->stock < $quantity) {
-      return response()->json([
-        'message' => '在庫が不足しています。'
-      ], 400);
-    }
-    
     DB::beginTransaction();
 
     try {
 
-      $sale = Sale::create([
-        'user_id' => Auth::id(),
-        'product_id' => $product_id,
-        'quantity' => $quantity,
-      ]);
+      $product = Product::where('id', $request->product_id)->lockForUpdate()->firstOrFail();
 
-      $product->decrement('stock', $quantity);
+      if ($product->stock < $request->quantity) {
+        throw new \Exception('在庫が不足しています。');
+      }
+
+      $product->reduceStock($request->quantity);
+
+      $sale = Sale::createSale(
+        Auth::id(),
+        $product->id,
+        $request->quantity,
+        $product->price
+      );
 
       DB::commit();
-    } catch (\Exception $e) {
 
+      return response()->json([
+        'message' => '購入が完了しました',
+        'order' => $sale,
+      ], 201);
+    } catch (\Exception $e) {
       DB::rollBack();
 
       return response()->json([
         'message' => $e->getMessage()
       ], 500);
     }
-
-    return response()->json([
-      'message' => '購入が完了しました',
-      'order' => $sale,
-    ], 201);
   }
 }
