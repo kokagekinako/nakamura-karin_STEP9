@@ -13,23 +13,30 @@ class PurchaseController extends Controller
 {
   public function purchase(Request $request)
   {
+    $request->validate(
+      [
+        'product_id' => 'required|integer|exists:products,id',
+        'quantity' => 'required|integer|min:1',
+      ],
+
+      [
+        'quantity.required' => '数量を入力してください。',
+        'quantity.integer' => '数量は数値で入力してください。',
+        'quantity.min' => '数量は1以上で入力してください。',
+      ]
+    );
+
     $product_id = $request->input('product_id');
     $quantity = $request->input('quantity');
 
-    $product = Product::find($product_id);
-
-    if (!$product) {
-      return response()->json([
-        'message' => '商品が存在しません。'
-      ], 404);
-    }
+    $product = Product::findOrFail($product_id);
 
     if ($product->stock < $quantity) {
       return response()->json([
         'message' => '在庫が不足しています。'
       ], 400);
     }
-
+    
     DB::beginTransaction();
 
     try {
